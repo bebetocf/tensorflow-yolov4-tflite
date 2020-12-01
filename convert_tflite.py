@@ -28,7 +28,8 @@ def representative_data_gen():
       continue
 
 def save_tflite():
-  converter = tf.lite.TFLiteConverter.from_saved_model(FLAGS.weights)
+
+  converter = tf.compat.v1.lite.TFLiteConverter.from_keras_model_file(FLAGS.weights)
 
   if FLAGS.quantize_mode == 'float16':
     converter.optimizations = [tf.lite.Optimize.DEFAULT]
@@ -38,10 +39,12 @@ def save_tflite():
   elif FLAGS.quantize_mode == 'int8':
     converter.target_spec.supported_ops = [tf.lite.OpsSet.TFLITE_BUILTINS_INT8]
     converter.optimizations = [tf.lite.Optimize.DEFAULT]
-    converter.target_spec.supported_ops = [tf.lite.OpsSet.TFLITE_BUILTINS, tf.lite.OpsSet.SELECT_TF_OPS]
-    converter.allow_custom_ops = True
+    converter.inference_input_type = tf.uint8
+    converter.inference_output_type = tf.uint8
+    # converter.allow_custom_ops = True
     converter.representative_dataset = representative_data_gen
 
+  converter.experimental_new_converter = False
   tflite_model = converter.convert()
   open(FLAGS.output, 'wb').write(tflite_model)
 
