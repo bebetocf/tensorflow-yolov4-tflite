@@ -79,6 +79,32 @@ def main(_argv):
             interpreter.set_tensor(input_details[0]['index'], image_data)
             interpreter.invoke()
             pred = [interpreter.get_tensor(output_details[i]['index']) for i in range(len(output_details))]
+             # add post process code here    
+            bbox_tensors = []
+            prob_tensors = []
+            if FLAGS.tiny:
+                for i, fm in enumerate(pred):
+                    if i == 0:
+                        output_tensors = decode(pred[1], input_size // 16, NUM_CLASS, STRIDES, ANCHORS, i, XYSCALE, 'tflite')
+                    else:
+                        output_tensors = decode(pred[0], input_size // 32, NUM_CLASS, STRIDES, ANCHORS, i, XYSCALE, 'tflite')
+                    bbox_tensors.append(output_tensors[0])
+                    prob_tensors.append(output_tensors[1])
+            else:
+                for i, fm in enumerate(pred):
+                    if i == 0:
+                        output_tensors = decode(pred[2], input_size // 8, NUM_CLASS, STRIDES, ANCHORS, i, XYSCALE, 'tflite')
+                    elif i == 1:
+                        output_tensors = decode(pred[0], input_size // 16, NUM_CLASS, STRIDES, ANCHORS, i, XYSCALE, 'tflite')
+                    else:
+                        output_tensors = decode(pred[1], input_size // 32, NUM_CLASS, STRIDES, ANCHORS, i, XYSCALE, 'tflite')
+                    bbox_tensors.append(output_tensors[0])
+                    prob_tensors.append(output_tensors[1])
+
+            pred_bbox = tf.concat(bbox_tensors, axis=1)
+            pred_prob = tf.concat(prob_tensors, axis=1)
+            pred = (pred_bbox, pred_prob)
+            
             if FLAGS.model == 'yolov3' and FLAGS.tiny == True:
                 boxes, pred_conf = filter_boxes(pred[1], pred[0], score_threshold=0.25,
                                                 input_shape=tf.constant([input_size, input_size]))
